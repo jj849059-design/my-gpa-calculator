@@ -23,6 +23,17 @@ st.markdown("""
         margin-top: 5px !important;
         margin-bottom: 5px !important;
     }
+    
+    /* 自訂成績顯示框的樣式 (模擬 Input 框) */
+    .grade-display {
+        border: 1px solid rgba(128, 128, 128, 0.5);
+        border-radius: 4px;
+        padding: 5px;
+        margin-top: 0px; /* 對齊按鈕 */
+        font-size: 18px;
+        font-weight: bold;
+        line-height: 1.6;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -33,19 +44,61 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
+grade_list = list(grade_map.keys()) # 轉成清單方便用索引操作 ['A+', 'A', 'A-', ...]
 
 # --- 2. 初始化 Session State ---
 if 'courses' not in st.session_state:
     st.session_state.courses = []
+
+# 初始化「目前選擇的成績索引」，預設為 0 (也就是 A+)
+if 'current_grade_index' not in st.session_state:
+    st.session_state.current_grade_index = 0
 
 # --- 3. 側邊欄：輸入區 ---
 with st.sidebar:
     st.header("📝 新增科目")
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
-    grade = st.selectbox("學期成績", options=list(grade_map.keys()))
     
-    if st.button("➕ 加入清單", type="primary"):
+    # --- 🔥 改造成績選擇器 (模擬 - + 按鈕) ---
+    st.write("學期成績")
+    
+    # 定義按鈕功能
+    def prev_grade():
+        # 按下 - 號：往後選 (成績變低, index + 1)，直到最後一個
+        if st.session_state.current_grade_index < len(grade_list) - 1:
+            st.session_state.current_grade_index += 1
+            
+    def next_grade():
+        # 按下 + 號：往前選 (成績變高, index - 1)，直到第一個
+        if st.session_state.current_grade_index > 0:
+            st.session_state.current_grade_index -= 1
+
+    # 建立三欄：[ 減號鈕 ] [ 顯示文字 ] [ 加號鈕 ]
+    # 使用 vertical_alignment="bottom" 讓它們對齊底部
+    g_col1, g_col2, g_col3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+    
+    with g_col1:
+        st.button("－", on_click=prev_grade, use_container_width=True, help="降低成績")
+        
+    with g_col3:
+        st.button("＋", on_click=next_grade, use_container_width=True, help="提高成績")
+
+    with g_col2:
+        # 取得當前成績文字
+        current_grade = grade_list[st.session_state.current_grade_index]
+        # 用 HTML 畫一個框框顯示成績
+        st.markdown(f'<div class="grade-display">{current_grade}</div>', unsafe_allow_html=True)
+
+    # 為了相容原本邏輯，把變數名稱對接回去
+    grade = current_grade
+    # ------------------------------------
+    
+    # 加入清單按鈕
+    # 這裡加一點 margin-top 讓它不要貼太近
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    
+    if st.button("➕ 加入清單", type="primary", use_container_width=True):
         st.session_state.courses.append({
             "科目": course_name if course_name else f"科目 {len(st.session_state.courses)+1}",
             "學分": credits,
@@ -108,18 +161,17 @@ with col2:
             # 建立欄位
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center", gap="small")
             
-            # 🔥 關鍵修改：用 HTML div 強制包住文字，確保 100% 置中
+            # HTML 強制置中
             def cell_txt(txt):
                 return f"<div style='text-align: center; font-size: 16px;'>{txt}</div>"
 
-            # 每一格都用 markdown(html) 來渲染，取代 st.write
             c1.markdown(cell_txt(course["科目"]), unsafe_allow_html=True)
             c2.markdown(cell_txt(f"{course['學分']:.1f}"), unsafe_allow_html=True)
             c3.markdown(cell_txt(course["成績"]), unsafe_allow_html=True)
             c4.markdown(cell_txt(f"{course['積分 (GP)']:.1f}"), unsafe_allow_html=True)
             c5.markdown(cell_txt(f"{course['學分 × GP']:.1f}"), unsafe_allow_html=True)
             
-            # 按鈕保持原樣
+            # 按鈕
             with c6:
                 if st.button("刪除", key=f"del_{i}", use_container_width=True):
                     st.session_state.courses.pop(i)
