@@ -162,7 +162,8 @@ with col2:
     else:
         st.info("👈 請從左側欄位新增您的科目與成績")
         
-        with st.expander("查看 105學年度 GPA 對照表"):
+        with st.expander("查看 GPA 對照表"):
             ref_df = pd.DataFrame(list(grade_map.items()), columns=["等第成績", "GP 值"])
             ref_df["GP 值"] = ref_df["GP 值"].apply(lambda x: f"{x:.1f}")
             st.table(ref_df)
+
