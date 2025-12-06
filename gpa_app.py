@@ -47,17 +47,14 @@ with st.sidebar:
         st.success(f"已加入 {grade}")
 
     st.divider()
-    # 這裡修正了：使用 st.rerun() 取代舊版指令
     if st.button("🗑️ 清空所有科目"):
         st.session_state.courses = []
         st.rerun()
 
 # --- 4. 主畫面：版面配置 (置中處理) ---
-# 使用 Columns 將內容夾在中間 [左空, 中間內容, 右空]
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    # 標題放在中間欄位才會置中
     st.markdown("<h1 style='text-align: center;'>🎓 大學 GPA 計算機</h1>", unsafe_allow_html=True)
     
     if len(st.session_state.courses) > 0:
@@ -70,11 +67,12 @@ with col2:
         gpa = total_points / total_credits if total_credits > 0 else 0.0
         
         # --- 顯示 GPA ---
+        # 修改處：<p> 標籤增加了 color: black; font-weight: 500;
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; margin-bottom:20px; text-align: center;">
             <h2 style="margin:0; color:#555;">學期平均 GPA</h2>
             <h1 style="margin:0; color:#ff4b4b; font-size: 60px;">{gpa:.2f}</h1>
-            <p style="margin:0;">總學分: {total_credits} | 總積分: {total_points:.1f}</p>
+            <p style="margin:0; color: black; font-size: 18px; font-weight: 500;">總學分: {total_credits} | 總積分: {total_points:.1f}</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -82,7 +80,6 @@ with col2:
 
         # --- 建立顯示專用的 DataFrame ---
         display_df = df.copy()
-        # 轉成字串確保對齊，並保留小數點位數
         display_df["學分"] = display_df["學分"].apply(lambda x: f"{x:.1f}")
         display_df["積分 (GP)"] = display_df["積分 (GP)"].apply(lambda x: f"{x:.1f}")
         display_df["學分 × GP"] = display_df["學分 × GP"].apply(lambda x: f"{x:.1f}")
@@ -94,17 +91,13 @@ with col2:
                                         {'selector': 'td', 'props': [('text-align', 'center')]}
                                     ])
 
-        # 顯示表格
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
         
     else:
-        # 空狀態顯示
         st.info("👈 請從左側欄位新增您的科目與成績")
         
-        # --- 對照表 ---
         with st.expander("查看 105學年度 GP 對照表"):
             ref_df = pd.DataFrame(list(grade_map.items()), columns=["等第成績", "GP 值"])
-            
             ref_df["GP 值"] = ref_df["GP 值"].apply(lambda x: f"{x:.1f}")
             
             styled_ref = ref_df.style.set_properties(**{'text-align': 'center'})\
@@ -112,5 +105,4 @@ with col2:
                                          {'selector': 'th', 'props': [('text-align', 'center')]},
                                          {'selector': 'td', 'props': [('text-align', 'center')]}
                                      ])
-            # 使用 st.table 讓對照表看起來更像靜態表格
             st.table(styled_ref)
