@@ -4,7 +4,7 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 修正對齊與樣式
+# CSS: 只保留最基本的表格置中設定，移除按鈕相關的複雜 CSS
 st.markdown("""
     <style>
     /* 強制修正表格標頭與內容的對齊 */
@@ -14,14 +14,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         text-align: center;
     }
-    
-    /* 讓每一列的按鈕都能水平置中 */
-    div[data-testid="column"] > div > div > div > div.stButton > button {
-        margin: 0 auto;
-        display: block;
-    }
-    
-    /* 調整分隔線的距離，讓表格看起來更緊湊 */
+    /* 調整分隔線距離 */
     hr {
         margin-top: 5px !important;
         margin-bottom: 5px !important;
@@ -70,7 +63,7 @@ with col2:
     st.markdown("<h1 style='text-align: center;'>🎓 大學 GPA 計算機</h1>", unsafe_allow_html=True)
     
     if len(st.session_state.courses) > 0:
-        # 原始數據 (用於計算)
+        # 原始數據
         df = pd.DataFrame(st.session_state.courses)
         
         # --- 計算 GPA ---
@@ -88,13 +81,11 @@ with col2:
         """, unsafe_allow_html=True)
         
         st.subheader("📋 科目清單")
-        st.caption("💡 點擊右側垃圾桶即可刪除單筆資料")
 
-        # --- 模擬表格標題列 ---
-        # 調整比例，讓刪除鈕稍微寬一點點以免跑版
-        cols_ratio = [3, 1.2, 1.2, 1.2, 1.2, 0.8]
+        # --- 表格標題列 ---
+        # 調整比例：稍微加大最後一欄給「刪除」按鈕
+        cols_ratio = [3, 1.2, 1.2, 1.2, 1.2, 1.2]
         
-        # 使用 vertical_alignment="bottom" 讓標題文字靠下對齊
         h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom")
         
         def header_txt(txt):
@@ -105,17 +96,16 @@ with col2:
         h3.markdown(header_txt("成績"), unsafe_allow_html=True)
         h4.markdown(header_txt("GP"), unsafe_allow_html=True)
         h5.markdown(header_txt("總分"), unsafe_allow_html=True)
-        h6.markdown(header_txt("刪除"), unsafe_allow_html=True)
+        h6.markdown(header_txt("操作"), unsafe_allow_html=True) # 標題改為操作
         
         st.markdown("<hr style='margin: 0 0 10px 0; border-top: 2px solid #ccc;'>", unsafe_allow_html=True)
 
         # --- 顯示每一行資料 ---
         for i, course in enumerate(st.session_state.courses):
-            # 🔥 關鍵修正：加上 vertical_alignment="center" 自動垂直置中
+            # vertical_alignment="center" 確保垂直置中
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center")
             
             def cell_txt(txt):
-                # 拿掉 line-height，讓 vertical_alignment 控制高度
                 return f"<div style='text-align: center; font-size: 16px;'>{txt}</div>"
 
             c1.markdown(cell_txt(course["科目"]), unsafe_allow_html=True)
@@ -124,13 +114,13 @@ with col2:
             c4.markdown(cell_txt(f"{course['積分 (GP)']:.1f}"), unsafe_allow_html=True)
             c5.markdown(cell_txt(f"{course['學分 × GP']:.1f}"), unsafe_allow_html=True)
             
-            # 按鈕直接放，靠 CSS 置中
+            # --- 🔥 重點修改：最簡單的刪除按鈕 🔥 ---
             with c6:
-                if st.button("🗑️", key=f"del_{i}", help="刪除此科目"):
+                # use_container_width=True 會讓按鈕填滿格子，看起來最整齊
+                if st.button("刪除", key=f"del_{i}", use_container_width=True):
                     st.session_state.courses.pop(i)
                     st.rerun()
             
-            # 分隔線
             st.markdown("<hr style='border-top: 1px solid #eee;'>", unsafe_allow_html=True)
         
     else:
