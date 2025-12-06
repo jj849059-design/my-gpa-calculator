@@ -11,7 +11,7 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
-# 建立反向清單：按 + 號時成績變高 (X -> E -> ... -> A+)
+# 建立反向清單：按 + 號時成績變高
 grade_options_reversed = list(grade_map.keys())[::-1] 
 max_grade_index = len(grade_options_reversed) - 1
 
@@ -25,13 +25,10 @@ with st.sidebar:
     
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     
-    # 這是標準的學分數輸入框 (供對照用)
+    # 學分數 (標準輸入框)
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 修正版：學期成績選擇器 ---
-    
-    # 使用 number_input 來當作「控制器」，數值代表 list 的 index
-    # label="學期成績" 這是 CSS 定位的關鍵
+    # 學期成績 (控制器)
     grade_idx = st.number_input(
         "學期成績",
         min_value=0, 
@@ -40,43 +37,42 @@ with st.sidebar:
         step=1
     )
     
-    # 取得對應的文字 (A+, A...)
+    # 取得對應的文字
     selected_grade_text = grade_options_reversed[grade_idx]
     
-    # --- CSS 魔術區 (修正定位問題) ---
+    # --- CSS 魔術區 ---
     st.markdown(f"""
     <style>
-    /* 1. 隱藏原本的數字 (0, 1, 2...) */
+    /* 1. 全域設定：讓所有 "數字輸入框" 的內容都置中 (包含學分數) */
+    div[data-testid="stNumberInput"] input {{
+        text-align: center !important;
+    }}
+
+    /* 2. 針對 "學期成績"：隱藏原本的數字 (0, 1, 2...) */
     div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) input {{
         color: transparent !important;
     }}
 
-    /* 2. 關鍵修正：鎖定 base-input 容器，這是「不含按鈕」的純文字區 */
+    /* 3. 針對 "學期成績"：鎖定純文字顯示區 (base-input) */
     div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="base-input"] {{
-        position: relative !important; /* 強制設定為相對定位基準點 */
+        position: relative !important;
     }}
 
-    /* 3. 在 base-input 裡面產生偽元素顯示文字 */
+    /* 4. 針對 "學期成績"：植入偽元素顯示 A+, A... */
     div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="base-input"]::after {{
         content: "{selected_grade_text}";  /* 插入 Python 變數文字 */
-        
-        /* 絕對定位：填滿整個 base-input 區域 */
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        
-        /* 彈性盒子：讓文字上下左右絕對置中 */
         display: flex;
         justify-content: center; /* 水平置中 */
         align-items: center;     /* 垂直置中 */
-        
-        /* 文字樣式：模仿原生外觀 */
-        color: white;       /* 確保深色模式下看得到 */
-        font-weight: 400;   /* 字體粗細跟上面學分數一致 */
-        font-size: 1rem;    /* 字體大小 */
-        pointer-events: none; /* 讓滑鼠點擊穿透文字，按得到輸入框 */
+        color: white;       
+        font-weight: 400;   
+        font-size: 1rem;    
+        pointer-events: none; 
     }}
     
     /* 修正表格置中 */
@@ -166,7 +162,7 @@ with col2:
     else:
         st.info("👈 請從左側欄位新增您的科目與成績")
         
-        with st.expander("查看 105學年度 GP 對照表"):
+        with st.expander("查看 105學年度 GPA 對照表"):
             ref_df = pd.DataFrame(list(grade_map.items()), columns=["等第成績", "GP 值"])
             ref_df["GP 值"] = ref_df["GP 值"].apply(lambda x: f"{x:.1f}")
             st.table(ref_df)
