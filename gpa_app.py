@@ -4,15 +4,15 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 修正對齊 + 消除欄位多餘留白 (解決空氣牆問題)
+# CSS: 修正對齊 + 消除欄位多餘留白
 st.markdown("""
     <style>
-    /* 讓所有欄位內的文字置中 */
+    /* 讓所有欄位內的文字預設置中 */
     div[data-testid="column"] {
         text-align: center;
     }
     
-    /* 🔥 關鍵修正：減少欄位左右的內縮留白，讓按鈕可以伸展 */
+    /* 減少欄位左右的內縮留白，讓按鈕空間變大 */
     div[data-testid="column"] > div {
         padding-left: 0.2rem !important;
         padding-right: 0.2rem !important;
@@ -61,7 +61,6 @@ with st.sidebar:
         st.rerun()
 
 # --- 4. 主畫面：版面配置 ---
-# 稍微調整這裡的比例，給中間多一點點空間，視覺會比較平衡
 col1, col2, col3 = st.columns([1, 2.5, 1]) 
 
 with col2:
@@ -87,17 +86,13 @@ with col2:
         
         st.subheader("📋 科目清單")
 
-        # --- 🔥 調整欄位比例 🔥 ---
-        # 舊比例: [3, 1.2, 1.2, 1.2, 1.2, 1.2]
-        # 新比例: [3, 1, 1, 1, 1, 1.5]
-        # 說明：數字欄位(1)改窄，按鈕欄位(1.5)改寬，這樣按鈕就不會覺得擠了
+        # --- 表格標題列 ---
         cols_ratio = [3, 1, 1, 1, 1, 1.5]
-        
-        # 加入 gap="small" 減少欄位之間的縫隙
         h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom", gap="small")
         
+        # 標題強制置中
         def header_txt(txt):
-            return f"<div style='font-weight: bold; color: #555; margin-bottom: 5px;'>{txt}</div>"
+            return f"<div style='text-align: center; font-weight: bold; color: #555; margin-bottom: 5px;'>{txt}</div>"
             
         h1.markdown(header_txt("科目"), unsafe_allow_html=True)
         h2.markdown(header_txt("學分"), unsafe_allow_html=True)
@@ -110,18 +105,22 @@ with col2:
 
         # --- 顯示每一行資料 ---
         for i, course in enumerate(st.session_state.courses):
-            # 加入 gap="small" 保持一致
+            # 建立欄位
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center", gap="small")
             
-            c1.write(course["科目"])
-            c2.write(f"{course['學分']:.1f}")
-            c3.write(course["成績"])
-            c4.write(f"{course['積分 (GP)']:.1f}")
-            c5.write(f"{course['學分 × GP']:.1f}")
+            # 🔥 關鍵修改：用 HTML div 強制包住文字，確保 100% 置中
+            def cell_txt(txt):
+                return f"<div style='text-align: center; font-size: 16px;'>{txt}</div>"
+
+            # 每一格都用 markdown(html) 來渲染，取代 st.write
+            c1.markdown(cell_txt(course["科目"]), unsafe_allow_html=True)
+            c2.markdown(cell_txt(f"{course['學分']:.1f}"), unsafe_allow_html=True)
+            c3.markdown(cell_txt(course["成績"]), unsafe_allow_html=True)
+            c4.markdown(cell_txt(f"{course['積分 (GP)']:.1f}"), unsafe_allow_html=True)
+            c5.markdown(cell_txt(f"{course['學分 × GP']:.1f}"), unsafe_allow_html=True)
             
+            # 按鈕保持原樣
             with c6:
-                # 按鈕現在有 1.5 的空間，而且內縮 padding 被 CSS 減少了
-                # 這樣它就會看起來很舒展，不會被卡住
                 if st.button("刪除", key=f"del_{i}", use_container_width=True):
                     st.session_state.courses.pop(i)
                     st.rerun()
