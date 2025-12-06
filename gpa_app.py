@@ -4,36 +4,46 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 視覺優化 (讓成績選擇器長得像原生輸入框)
+# CSS: 視覺優化 (強制對齊高度)
 st.markdown("""
     <style>
-    /* 讓所有表格內容置中 */
+    /* 1. 讓表格內容置中 */
     div[data-testid="column"] {
         text-align: center;
     }
-    
-    /* 調整按鈕與輸入框的垂直對齊 */
+
+    /* 2. 針對 sidebar 的按鈕進行高度強制統一 */
+    /* 讓 + - 按鈕高度跟輸入框完全一樣 (標準是 42px) */
     div.stButton > button {
-        height: 42px; /* 強制設定按鈕高度與輸入框一致 */
+        height: 42px; 
         padding-top: 0px;
         padding-bottom: 0px;
-        font-weight: bold;
-        border-color: #494B55; /* 讓邊框顏色跟輸入框接近 */
+        border-color: #494B55;
     }
 
-    /* 模擬 Streamlit 原生輸入框的樣式 */
-    .grade-display-box {
-        background-color: #262730; /* Streamlit 深色模式的輸入框背景色 */
-        border: 1px solid #494B55; /* 邊框顏色 */
-        border-radius: 0.5rem;     /* 圓角 */
-        height: 42px;              /* 高度 */
-        display: flex;
-        align-items: center;       /* 垂直置中 */
-        justify-content: center;   /* 水平置中 */
+    /* 3. 修改中間那個 "偽裝" 的文字輸入框 */
+    /* 隱藏輸入框上面的小標籤空間 (以免它比按鈕低) */
+    div[data-testid="stTextInput"] {
+        margin-top: -5px; /* 微調讓它跟按鈕對齊 */
+    }
+    
+    /* 4. 針對 "disabled" (唯讀) 的輸入框進行樣式覆寫 */
+    /* 讓它看起來像正常的框，不要變灰 */
+    div[data-testid="stTextInput"] input:disabled {
+        background-color: #262730; /* 保持深色背景 */
+        color: white;              /* 文字白色 */
+        opacity: 1;                /* 取消透明度 (關鍵!) */
+        text-align: center;        /* 文字置中 */
+        font-weight: bold;
         font-size: 18px;
-        font-weight: 600;
-        color: white;              /* 文字顏色 */
-        margin-bottom: 0px;
+        -webkit-text-fill-color: white; /* 確保 Safari/Chrome 文字顏色正確 */
+        border-color: #494B55;
+        cursor: default;           /* 滑鼠游標改為預設 */
+    }
+
+    /* 隱藏 disabled 輸入框右邊可能出現的鎖頭圖示 */
+    div[data-testid="stTextInput"] svg {
+        display: none;
     }
 
     /* 調整分隔線距離 */
@@ -65,10 +75,9 @@ with st.sidebar:
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 超級擬真版 成績選擇器 ---
-    st.write("學期成績") # 標題
+    # --- 🔥 完美高度對齊版 成績選擇器 ---
+    st.write("學期成績")
     
-    # 按鈕邏輯
     def prev_grade():
         if st.session_state.current_grade_index < len(grade_list) - 1:
             st.session_state.current_grade_index += 1
@@ -77,21 +86,31 @@ with st.sidebar:
             st.session_state.current_grade_index -= 1
 
     # 版面配置：使用 gap="small" 讓按鈕緊貼
-    # 比例設為 [1, 3, 1] 讓中間寬一點，按鈕窄一點，看起來更像是一個整體
-    c_minus, c_display, c_plus = st.columns([1, 3, 1], gap="small", vertical_alignment="center")
+    # vertical_alignment="top" 這裡很重要，因為我們要消掉 input 上方的 padding
+    c_minus, c_display, c_plus = st.columns([1, 3, 1], gap="small", vertical_alignment="top")
     
     with c_minus:
+        # 按鈕高度已被 CSS 強制設為 42px
         st.button("－", on_click=prev_grade, use_container_width=True)
         
     with c_display:
         current_grade = grade_list[st.session_state.current_grade_index]
-        # 使用自訂的 CSS class 畫出假輸入框
-        st.markdown(f'<div class="grade-display-box">{current_grade}</div>', unsafe_allow_html=True)
+        
+        # 🌟 關鍵修改：直接使用原生 text_input
+        # 1. label_visibility="collapsed" -> 隱藏標籤，節省空間
+        # 2. disabled=True -> 禁止手動輸入 (避免手機鍵盤跳出來)
+        # 3. key 每次都要變(或固定)，這裡用 key 固定配合 value 更新
+        st.text_input(
+            "hidden_label", 
+            value=current_grade, 
+            label_visibility="collapsed", 
+            disabled=True, 
+            key="grade_display_input"
+        )
         
     with c_plus:
         st.button("＋", on_click=next_grade, use_container_width=True)
     
-    # 對接變數
     grade = current_grade
     # ------------------------------------
     
