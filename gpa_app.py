@@ -54,7 +54,7 @@ with st.sidebar:
     st.divider()
     if st.button("🗑️ 清空所有科目"):
         st.session_state.courses = []
-        st.experimental_rerun() # <--- 改成這樣就修好了！
+        st.rerun()
 
 # --- 4. 主畫面：顯示結果 ---
 
@@ -116,3 +116,4 @@ with main_content:
             # 使用 st.table 對於靜態表格的居中效果通常比 dataframe 更好
 
             st.table(styled_ref)
+
