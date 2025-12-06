@@ -4,13 +4,20 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 只保留最基本的表格文字置中
+# CSS: 修正對齊 + 消除欄位多餘留白 (解決空氣牆問題)
 st.markdown("""
     <style>
     /* 讓所有欄位內的文字置中 */
     div[data-testid="column"] {
         text-align: center;
     }
+    
+    /* 🔥 關鍵修正：減少欄位左右的內縮留白，讓按鈕可以伸展 */
+    div[data-testid="column"] > div {
+        padding-left: 0.2rem !important;
+        padding-right: 0.2rem !important;
+    }
+
     /* 調整分隔線距離 */
     hr {
         margin-top: 5px !important;
@@ -54,7 +61,8 @@ with st.sidebar:
         st.rerun()
 
 # --- 4. 主畫面：版面配置 ---
-col1, col2, col3 = st.columns([1, 2, 1])
+# 稍微調整這裡的比例，給中間多一點點空間，視覺會比較平衡
+col1, col2, col3 = st.columns([1, 2.5, 1]) 
 
 with col2:
     st.markdown("<h1 style='text-align: center;'>🎓 大學 GPA 計算機</h1>", unsafe_allow_html=True)
@@ -79,11 +87,14 @@ with col2:
         
         st.subheader("📋 科目清單")
 
-        # --- 表格標題列 ---
-        # 這裡設定欄位比例，最後一個欄位(刪除鈕)給稍微多一點空間
-        cols_ratio = [3, 1.2, 1.2, 1.2, 1.2, 1.2]
+        # --- 🔥 調整欄位比例 🔥 ---
+        # 舊比例: [3, 1.2, 1.2, 1.2, 1.2, 1.2]
+        # 新比例: [3, 1, 1, 1, 1, 1.5]
+        # 說明：數字欄位(1)改窄，按鈕欄位(1.5)改寬，這樣按鈕就不會覺得擠了
+        cols_ratio = [3, 1, 1, 1, 1, 1.5]
         
-        h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom")
+        # 加入 gap="small" 減少欄位之間的縫隙
+        h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom", gap="small")
         
         def header_txt(txt):
             return f"<div style='font-weight: bold; color: #555; margin-bottom: 5px;'>{txt}</div>"
@@ -99,24 +110,22 @@ with col2:
 
         # --- 顯示每一行資料 ---
         for i, course in enumerate(st.session_state.courses):
-            # vertical_alignment="center" 讓按鈕跟文字自動垂直對齊
-            c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center")
+            # 加入 gap="small" 保持一致
+            c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center", gap="small")
             
-            # 純文字顯示，不加額外 HTML 樣式，讓它自然對齊
             c1.write(course["科目"])
             c2.write(f"{course['學分']:.1f}")
             c3.write(course["成績"])
             c4.write(f"{course['積分 (GP)']:.1f}")
             c5.write(f"{course['學分 × GP']:.1f}")
             
-            # --- 按鈕區域 ---
             with c6:
-                # use_container_width=True 會強制按鈕填滿寬度，看起來最整齊
+                # 按鈕現在有 1.5 的空間，而且內縮 padding 被 CSS 減少了
+                # 這樣它就會看起來很舒展，不會被卡住
                 if st.button("刪除", key=f"del_{i}", use_container_width=True):
                     st.session_state.courses.pop(i)
                     st.rerun()
             
-            # 每一行下面加一條細線
             st.markdown("<hr style='border-top: 1px solid #eee;'>", unsafe_allow_html=True)
         
     else:
