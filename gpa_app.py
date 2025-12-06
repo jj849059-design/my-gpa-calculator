@@ -4,35 +4,42 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 修正對齊 + 消除欄位多餘留白
+# CSS: 視覺優化 (讓成績選擇器長得像原生輸入框)
 st.markdown("""
     <style>
-    /* 讓所有欄位內的文字預設置中 */
+    /* 讓所有表格內容置中 */
     div[data-testid="column"] {
         text-align: center;
     }
     
-    /* 減少欄位左右的內縮留白，讓按鈕空間變大 */
-    div[data-testid="column"] > div {
-        padding-left: 0.2rem !important;
-        padding-right: 0.2rem !important;
+    /* 調整按鈕與輸入框的垂直對齊 */
+    div.stButton > button {
+        height: 42px; /* 強制設定按鈕高度與輸入框一致 */
+        padding-top: 0px;
+        padding-bottom: 0px;
+        font-weight: bold;
+        border-color: #494B55; /* 讓邊框顏色跟輸入框接近 */
+    }
+
+    /* 模擬 Streamlit 原生輸入框的樣式 */
+    .grade-display-box {
+        background-color: #262730; /* Streamlit 深色模式的輸入框背景色 */
+        border: 1px solid #494B55; /* 邊框顏色 */
+        border-radius: 0.5rem;     /* 圓角 */
+        height: 42px;              /* 高度 */
+        display: flex;
+        align-items: center;       /* 垂直置中 */
+        justify-content: center;   /* 水平置中 */
+        font-size: 18px;
+        font-weight: 600;
+        color: white;              /* 文字顏色 */
+        margin-bottom: 0px;
     }
 
     /* 調整分隔線距離 */
     hr {
         margin-top: 5px !important;
         margin-bottom: 5px !important;
-    }
-    
-    /* 自訂成績顯示框的樣式 (模擬 Input 框) */
-    .grade-display {
-        border: 1px solid rgba(128, 128, 128, 0.5);
-        border-radius: 4px;
-        padding: 5px;
-        margin-top: 0px; /* 對齊按鈕 */
-        font-size: 18px;
-        font-weight: bold;
-        line-height: 1.6;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -44,13 +51,11 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
-grade_list = list(grade_map.keys()) # 轉成清單方便用索引操作 ['A+', 'A', 'A-', ...]
+grade_list = list(grade_map.keys())
 
 # --- 2. 初始化 Session State ---
 if 'courses' not in st.session_state:
     st.session_state.courses = []
-
-# 初始化「目前選擇的成績索引」，預設為 0 (也就是 A+)
 if 'current_grade_index' not in st.session_state:
     st.session_state.current_grade_index = 0
 
@@ -60,43 +65,37 @@ with st.sidebar:
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 改造成績選擇器 (模擬 - + 按鈕) ---
-    st.write("學期成績")
+    # --- 🔥 超級擬真版 成績選擇器 ---
+    st.write("學期成績") # 標題
     
-    # 定義按鈕功能
+    # 按鈕邏輯
     def prev_grade():
-        # 按下 - 號：往後選 (成績變低, index + 1)，直到最後一個
         if st.session_state.current_grade_index < len(grade_list) - 1:
             st.session_state.current_grade_index += 1
-            
     def next_grade():
-        # 按下 + 號：往前選 (成績變高, index - 1)，直到第一個
         if st.session_state.current_grade_index > 0:
             st.session_state.current_grade_index -= 1
 
-    # 建立三欄：[ 減號鈕 ] [ 顯示文字 ] [ 加號鈕 ]
-    # 使用 vertical_alignment="bottom" 讓它們對齊底部
-    g_col1, g_col2, g_col3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+    # 版面配置：使用 gap="small" 讓按鈕緊貼
+    # 比例設為 [1, 3, 1] 讓中間寬一點，按鈕窄一點，看起來更像是一個整體
+    c_minus, c_display, c_plus = st.columns([1, 3, 1], gap="small", vertical_alignment="center")
     
-    with g_col1:
-        st.button("－", on_click=prev_grade, use_container_width=True, help="降低成績")
+    with c_minus:
+        st.button("－", on_click=prev_grade, use_container_width=True)
         
-    with g_col3:
-        st.button("＋", on_click=next_grade, use_container_width=True, help="提高成績")
-
-    with g_col2:
-        # 取得當前成績文字
+    with c_display:
         current_grade = grade_list[st.session_state.current_grade_index]
-        # 用 HTML 畫一個框框顯示成績
-        st.markdown(f'<div class="grade-display">{current_grade}</div>', unsafe_allow_html=True)
-
-    # 為了相容原本邏輯，把變數名稱對接回去
+        # 使用自訂的 CSS class 畫出假輸入框
+        st.markdown(f'<div class="grade-display-box">{current_grade}</div>', unsafe_allow_html=True)
+        
+    with c_plus:
+        st.button("＋", on_click=next_grade, use_container_width=True)
+    
+    # 對接變數
     grade = current_grade
     # ------------------------------------
     
-    # 加入清單按鈕
-    # 這裡加一點 margin-top 讓它不要貼太近
-    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     if st.button("➕ 加入清單", type="primary", use_container_width=True):
         st.session_state.courses.append({
@@ -143,7 +142,6 @@ with col2:
         cols_ratio = [3, 1, 1, 1, 1, 1.5]
         h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom", gap="small")
         
-        # 標題強制置中
         def header_txt(txt):
             return f"<div style='text-align: center; font-weight: bold; color: #555; margin-bottom: 5px;'>{txt}</div>"
             
@@ -158,10 +156,8 @@ with col2:
 
         # --- 顯示每一行資料 ---
         for i, course in enumerate(st.session_state.courses):
-            # 建立欄位
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center", gap="small")
             
-            # HTML 強制置中
             def cell_txt(txt):
                 return f"<div style='text-align: center; font-size: 16px;'>{txt}</div>"
 
@@ -171,7 +167,6 @@ with col2:
             c4.markdown(cell_txt(f"{course['積分 (GP)']:.1f}"), unsafe_allow_html=True)
             c5.markdown(cell_txt(f"{course['學分 × GP']:.1f}"), unsafe_allow_html=True)
             
-            # 按鈕
             with c6:
                 if st.button("刪除", key=f"del_{i}", use_container_width=True):
                     st.session_state.courses.pop(i)
