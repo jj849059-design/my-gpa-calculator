@@ -4,7 +4,7 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 視覺優化 (強制對齊高度)
+# CSS: 視覺優化 (讓成績選擇器變身！)
 st.markdown("""
     <style>
     /* 1. 讓表格內容置中 */
@@ -12,44 +12,44 @@ st.markdown("""
         text-align: center;
     }
 
-    /* 2. 針對 sidebar 的按鈕進行高度強制統一 */
-    /* 讓 + - 按鈕高度跟輸入框完全一樣 (標準是 42px) */
-    div.stButton > button {
-        height: 42px; 
-        padding-top: 0px;
-        padding-bottom: 0px;
-        border-color: #494B55;
-    }
-
-    /* 3. 修改中間那個 "偽裝" 的文字輸入框 */
-    /* 隱藏輸入框上面的小標籤空間 (以免它比按鈕低) */
-    div[data-testid="stTextInput"] {
-        margin-top: -5px; /* 微調讓它跟按鈕對齊 */
+    /* 2. 針對 "學期成績" 的數字輸入框進行魔改 */
+    /* 透過 aria-label 定位到這個特定的輸入框，把原本的數字變透明 */
+    input[aria-label="grade_input_label"] {
+        color: transparent !important; /* 隱藏數字 */
+        caret-color: transparent;      /* 隱藏游標 */
+        cursor: default;               /* 滑鼠游標不變 */
     }
     
-    /* 4. 針對 "disabled" (唯讀) 的輸入框進行樣式覆寫 */
-    /* 讓它看起來像正常的框，不要變灰 */
-    div[data-testid="stTextInput"] input:disabled {
-        background-color: #262730; /* 保持深色背景 */
-        color: white;              /* 文字白色 */
-        opacity: 1;                /* 取消透明度 (關鍵!) */
-        text-align: center;        /* 文字置中 */
-        font-weight: bold;
-        font-size: 18px;
-        -webkit-text-fill-color: white; /* 確保 Safari/Chrome 文字顏色正確 */
-        border-color: #494B55;
-        cursor: default;           /* 滑鼠游標改為預設 */
+    /* 禁止使用者點擊該輸入框文字區域 (防止跳出鍵盤)，但保留按鈕功能 */
+    input[aria-label="grade_input_label"] {
+        pointer-events: none; 
     }
 
-    /* 隱藏 disabled 輸入框右邊可能出現的鎖頭圖示 */
-    div[data-testid="stTextInput"] svg {
-        display: none;
+    /* 3. 製作 "文字覆蓋層" 的樣式 */
+    .grade-display-overlay {
+        position: relative;
+        top: -36px;       /* 向上移動覆蓋住原本的輸入框 */
+        left: 10px;       /* 靠左對齊，模擬輸入框文字位置 */
+        height: 0;        /* 設定高度為 0，避免佔用下方空間 */
+        width: 70%;       /* 寬度限制，避免擋到右邊的按鈕 */
+        overflow: visible;
+        pointer-events: none; /* 關鍵！讓點擊穿透這層文字，直接點到底下的框框 */
+        font-weight: 600;
+        color: white;     /* 強制白色文字 */
+        font-size: 16px;  /* 字體大小 */
+        z-index: 5;
     }
 
     /* 調整分隔線距離 */
     hr {
         margin-top: 5px !important;
         margin-bottom: 5px !important;
+    }
+    
+    /* 調整側邊欄標題間距 */
+    .sidebar-label {
+        font-size: 14px;
+        margin-bottom: 5px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -61,13 +61,13 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
-grade_list = list(grade_map.keys())
+# 建立一個反向清單：從 [X, E, ..., A+]，這樣按 + 號時成績才會變高
+grade_options = list(grade_map.keys())[::-1] 
+max_grade_index = len(grade_options) - 1
 
 # --- 2. 初始化 Session State ---
 if 'courses' not in st.session_state:
     st.session_state.courses = []
-if 'current_grade_index' not in st.session_state:
-    st.session_state.current_grade_index = 0
 
 # --- 3. 側邊欄：輸入區 ---
 with st.sidebar:
@@ -75,56 +75,41 @@ with st.sidebar:
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 完美高度對齊版 成績選擇器 ---
-    st.write("學期成績")
+    # --- 🔥 完美擬真版：直接使用 st.number_input ---
     
-    def prev_grade():
-        if st.session_state.current_grade_index < len(grade_list) - 1:
-            st.session_state.current_grade_index += 1
-    def next_grade():
-        if st.session_state.current_grade_index > 0:
-            st.session_state.current_grade_index -= 1
+    # 1. 自己畫標題，模擬 st.number_input 的標題樣式
+    st.markdown('<p class="sidebar-label">學期成績</p>', unsafe_allow_html=True)
+    
+    # 2. 使用 number_input 選擇 "索引值" (0 ~ 11)
+    # label 設為 "grade_input_label" 以便 CSS 定位
+    grade_idx = st.number_input(
+        "grade_input_label", 
+        min_value=0, 
+        max_value=max_grade_index, 
+        value=max_grade_index, # 預設選最下面的 (A+)
+        step=1,
+        label_visibility="collapsed" # 隱藏原本的標題
+    )
+    
+    # 3. 根據索引值抓出對應的文字 (例如 "A+")
+    selected_grade_text = grade_options[grade_idx]
+    
+    # 4. 用 HTML 覆蓋層把文字 "貼" 在輸入框上面
+    st.markdown(f'<div class="grade-display-overlay">{selected_grade_text}</div>', unsafe_allow_html=True)
 
-    # 版面配置：使用 gap="small" 讓按鈕緊貼
-    # vertical_alignment="top" 這裡很重要，因為我們要消掉 input 上方的 padding
-    c_minus, c_display, c_plus = st.columns([1, 3, 1], gap="small", vertical_alignment="top")
-    
-    with c_minus:
-        # 按鈕高度已被 CSS 強制設為 42px
-        st.button("－", on_click=prev_grade, use_container_width=True)
-        
-    with c_display:
-        current_grade = grade_list[st.session_state.current_grade_index]
-        
-        # 🌟 關鍵修改：直接使用原生 text_input
-        # 1. label_visibility="collapsed" -> 隱藏標籤，節省空間
-        # 2. disabled=True -> 禁止手動輸入 (避免手機鍵盤跳出來)
-        # 3. key 每次都要變(或固定)，這裡用 key 固定配合 value 更新
-        st.text_input(
-            "hidden_label", 
-            value=current_grade, 
-            label_visibility="collapsed", 
-            disabled=True, 
-            key="grade_display_input"
-        )
-        
-    with c_plus:
-        st.button("＋", on_click=next_grade, use_container_width=True)
-    
-    grade = current_grade
     # ------------------------------------
     
-    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     
     if st.button("➕ 加入清單", type="primary", use_container_width=True):
         st.session_state.courses.append({
             "科目": course_name if course_name else f"科目 {len(st.session_state.courses)+1}",
             "學分": credits,
-            "成績": grade,
-            "積分 (GP)": grade_map[grade],
-            "學分 × GP": credits * grade_map[grade]
+            "成績": selected_grade_text,
+            "積分 (GP)": grade_map[selected_grade_text],
+            "學分 × GP": credits * grade_map[selected_grade_text]
         })
-        st.success(f"已加入 {grade}")
+        st.success(f"已加入 {selected_grade_text}")
 
     st.divider()
     if st.button("🗑️ 清空所有科目"):
