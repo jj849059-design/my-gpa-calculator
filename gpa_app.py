@@ -4,7 +4,7 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 修正 Streamlit 表格內容對齊
+# CSS: 修正 Streamlit 表格內容對齊與樣式
 st.markdown("""
     <style>
     /* 強制修正表格標頭與內容的對齊 */
@@ -13,6 +13,11 @@ st.markdown("""
     }
     div[data-testid="stMetricValue"] {
         text-align: center;
+    }
+    /* 讓按鈕在欄位中更容易居中 (輔助) */
+    div.stButton > button:first-child {
+        margin: 0 auto;
+        display: block;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -79,11 +84,9 @@ with col2:
         st.caption("💡 點擊右側垃圾桶即可刪除單筆資料")
 
         # --- 模擬表格標題列 ---
-        # 定義欄位比例：科目寬一點，數據窄一點，刪除鈕最小
         cols_ratio = [3, 1.5, 1.5, 1.5, 1.5, 1]
         h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio)
         
-        # 標題樣式 (置中 + 粗體)
         def header_txt(txt):
             return f"<div style='text-align: center; font-weight: bold; color: #555;'>{txt}</div>"
             
@@ -97,12 +100,11 @@ with col2:
         st.markdown("<hr style='margin: 5px 0; border-top: 2px solid #eee;'>", unsafe_allow_html=True)
 
         # --- 顯示每一行資料 ---
-        # 使用 enumerate 取得 index，這樣我們才知道要刪除哪一筆
         for i, course in enumerate(st.session_state.courses):
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio)
             
-            # 內容樣式 (置中)
             def cell_txt(txt):
+                # line-height 調整垂直置中，讓文字高度跟按鈕差不多
                 return f"<div style='text-align: center; line-height: 2.5;'>{txt}</div>"
 
             c1.markdown(cell_txt(course["科目"]), unsafe_allow_html=True)
@@ -111,14 +113,17 @@ with col2:
             c4.markdown(cell_txt(f"{course['積分 (GP)']:.1f}"), unsafe_allow_html=True)
             c5.markdown(cell_txt(f"{course['學分 × GP']:.1f}"), unsafe_allow_html=True)
             
-            # 刪除按鈕
+            # --- 按鈕置中區 ---
             with c6:
-                # 每個按鈕都需要唯一的 key，我們用 index 來當 key
-                if st.button("🗑️", key=f"del_{i}", help="刪除此科目"):
-                    st.session_state.courses.pop(i) # 從清單中移除
-                    st.rerun() # 重新整理頁面以更新顯示
+                # 技巧：在這一格裡面再切三個小欄位 [空, 按鈕, 空]
+                # 這樣按鈕就會被迫在中間顯示
+                b_left, b_mid, b_right = st.columns([0.5, 1, 0.5])
+                with b_mid:
+                    if st.button("🗑️", key=f"del_{i}", help="刪除此科目"):
+                        st.session_state.courses.pop(i)
+                        st.rerun()
             
-            # 每一行下面加一條細線分隔
+            # 分隔線
             st.markdown("<hr style='margin: 2px 0; border-top: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
         
     else:
@@ -127,5 +132,4 @@ with col2:
         with st.expander("查看 105學年度 GP 對照表"):
             ref_df = pd.DataFrame(list(grade_map.items()), columns=["等第成績", "GP 值"])
             ref_df["GP 值"] = ref_df["GP 值"].apply(lambda x: f"{x:.1f}")
-            # 保留原本的 Table 顯示方式
             st.table(ref_df)
