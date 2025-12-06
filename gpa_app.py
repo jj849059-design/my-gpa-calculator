@@ -11,9 +11,8 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
-# 建立「由小到大」的清單，這樣按 + 號才會是成績變高
+# 建立反向清單：按 + 號時成績變高 (X -> E -> ... -> A+)
 grade_options_reversed = list(grade_map.keys())[::-1] 
-# grade_options_reversed 變成 ['X', 'E', 'D', ... 'A', 'A+']
 max_grade_index = len(grade_options_reversed) - 1
 
 # --- 2. 初始化 Session State ---
@@ -24,62 +23,66 @@ if 'courses' not in st.session_state:
 with st.sidebar:
     st.header("📝 新增科目")
     
-    # 科目名稱
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
     
-    # 學分數 (標準輸入框)
+    # 這是標準的學分數輸入框 (供對照用)
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 終極版：學期成績選擇器 ---
-    # 邏輯：使用 st.number_input 選擇 0 ~ 11 的索引值
-    # 視覺：用 CSS 把數字隱藏，改顯示對應的文字 (A+, A...)
+    # --- 🔥 修正版：學期成績選擇器 ---
     
+    # 使用 number_input 來當作「控制器」，數值代表 list 的 index
+    # label="學期成績" 這是 CSS 定位的關鍵
     grade_idx = st.number_input(
-        "學期成績",                  # 使用原生標題，確保對齊
+        "學期成績",
         min_value=0, 
         max_value=max_grade_index, 
-        value=max_grade_index,      # 預設選 A+ (最大值)
+        value=max_grade_index, # 預設 A+
         step=1
     )
     
-    # 取得目前的成績文字 (例如 "A+")
+    # 取得對應的文字 (A+, A...)
     selected_grade_text = grade_options_reversed[grade_idx]
     
-    # --- CSS 魔術區 ---
-    # 這裡做了三件事：
-    # 1. 隱藏原本的數字 (color: transparent)
-    # 2. 定義一個 CSS 變數 --current-grade 存現在的成績
-    # 3. 用 ::after 偽元素把成績文字「貼」在輸入框原本顯示數字的地方
-    
+    # --- CSS 魔術區 (修正定位問題) ---
     st.markdown(f"""
     <style>
-    /* 1. 隱藏原本的 0, 1, 2... 數字 */
-    input[aria-label="學期成績"] {{
+    /* 1. 隱藏原本的數字 (0, 1, 2...) */
+    div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) input {{
         color: transparent !important;
-        caret-color: transparent; /* 隱藏游標 */
     }}
 
-    /* 2. 透過 :has() 選取器找到輸入框的父容器，並植入文字 */
-    div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="input"]::after {{
-        content: "{selected_grade_text}";  /* 🔥 這裡直接帶入 Python 變數 */
+    /* 2. 關鍵修正：鎖定 base-input 容器，這是「不含按鈕」的純文字區 */
+    div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="base-input"] {{
+        position: relative !important; /* 強制設定為相對定位基準點 */
+    }}
+
+    /* 3. 在 base-input 裡面產生偽元素顯示文字 */
+    div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="base-input"]::after {{
+        content: "{selected_grade_text}";  /* 插入 Python 變數文字 */
         
+        /* 絕對定位：填滿整個 base-input 區域 */
         position: absolute;
-        left: 0;           /* 靠左對齊 */
-        padding-left: 10px;/* 模擬原本數字的內縮距離 */
         top: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
+        left: 0;
+        width: 100%;
+        height: 100%;
         
-        color: white;      /* 文字顏色 */
-        font-family: "Source Sans Pro", sans-serif; /* 確保字體一致 */
-        pointer-events: none; /* 讓點擊穿透，確保按鈕功能正常 */
+        /* 彈性盒子：讓文字上下左右絕對置中 */
+        display: flex;
+        justify-content: center; /* 水平置中 */
+        align-items: center;     /* 垂直置中 */
+        
+        /* 文字樣式：模仿原生外觀 */
+        color: white;       /* 確保深色模式下看得到 */
+        font-weight: 400;   /* 字體粗細跟上面學分數一致 */
+        font-size: 1rem;    /* 字體大小 */
+        pointer-events: none; /* 讓滑鼠點擊穿透文字，按得到輸入框 */
     }}
     
     /* 修正表格置中 */
     div[data-testid="column"] {{ text-align: center; }}
     
-    /* 調整表格內的按鈕 */
+    /* 讓表格內的刪除按鈕填滿 */
     div.stButton > button {{ width: 100%; }}
     </style>
     """, unsafe_allow_html=True)
