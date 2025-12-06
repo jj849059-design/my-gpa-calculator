@@ -4,56 +4,6 @@ import pandas as pd
 # --- 設定頁面 ---
 st.set_page_config(page_title="GPA 計算機 (105學年度制)", page_icon="🎓", layout="wide")
 
-# CSS: 視覺優化 (讓成績選擇器變身！)
-st.markdown("""
-    <style>
-    /* 1. 讓表格內容置中 */
-    div[data-testid="column"] {
-        text-align: center;
-    }
-
-    /* 2. 針對 "學期成績" 的數字輸入框進行魔改 */
-    /* 透過 aria-label 定位到這個特定的輸入框，把原本的數字變透明 */
-    input[aria-label="grade_input_label"] {
-        color: transparent !important; /* 隱藏數字 */
-        caret-color: transparent;      /* 隱藏游標 */
-        cursor: default;               /* 滑鼠游標不變 */
-    }
-    
-    /* 禁止使用者點擊該輸入框文字區域 (防止跳出鍵盤)，但保留按鈕功能 */
-    input[aria-label="grade_input_label"] {
-        pointer-events: none; 
-    }
-
-    /* 3. 製作 "文字覆蓋層" 的樣式 */
-    .grade-display-overlay {
-        position: relative;
-        top: -36px;       /* 向上移動覆蓋住原本的輸入框 */
-        left: 10px;       /* 靠左對齊，模擬輸入框文字位置 */
-        height: 0;        /* 設定高度為 0，避免佔用下方空間 */
-        width: 70%;       /* 寬度限制，避免擋到右邊的按鈕 */
-        overflow: visible;
-        pointer-events: none; /* 關鍵！讓點擊穿透這層文字，直接點到底下的框框 */
-        font-weight: 600;
-        color: white;     /* 強制白色文字 */
-        font-size: 16px;  /* 字體大小 */
-        z-index: 5;
-    }
-
-    /* 調整分隔線距離 */
-    hr {
-        margin-top: 5px !important;
-        margin-bottom: 5px !important;
-    }
-    
-    /* 調整側邊欄標題間距 */
-    .sidebar-label {
-        font-size: 14px;
-        margin-bottom: 5px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 # --- 1. 定義成績對照表 ---
 grade_map = {
     "A+": 4.3, "A":  4.0, "A-": 3.7,
@@ -61,9 +11,10 @@ grade_map = {
     "C+": 2.3, "C":  2.0, "C-": 1.7,
     "D":  1.0, "E":  0.0, "X":  0.0
 }
-# 建立一個反向清單：從 [X, E, ..., A+]，這樣按 + 號時成績才會變高
-grade_options = list(grade_map.keys())[::-1] 
-max_grade_index = len(grade_options) - 1
+# 建立「由小到大」的清單，這樣按 + 號才會是成績變高
+grade_options_reversed = list(grade_map.keys())[::-1] 
+# grade_options_reversed 變成 ['X', 'E', 'D', ... 'A', 'A+']
+max_grade_index = len(grade_options_reversed) - 1
 
 # --- 2. 初始化 Session State ---
 if 'courses' not in st.session_state:
@@ -72,30 +23,66 @@ if 'courses' not in st.session_state:
 # --- 3. 側邊欄：輸入區 ---
 with st.sidebar:
     st.header("📝 新增科目")
+    
+    # 科目名稱
     course_name = st.text_input("科目名稱 (選填)", placeholder="例如：微積分")
+    
+    # 學分數 (標準輸入框)
     credits = st.number_input("學分數", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
     
-    # --- 🔥 完美擬真版：直接使用 st.number_input ---
+    # --- 🔥 終極版：學期成績選擇器 ---
+    # 邏輯：使用 st.number_input 選擇 0 ~ 11 的索引值
+    # 視覺：用 CSS 把數字隱藏，改顯示對應的文字 (A+, A...)
     
-    # 1. 自己畫標題，模擬 st.number_input 的標題樣式
-    st.markdown('<p class="sidebar-label">學期成績</p>', unsafe_allow_html=True)
-    
-    # 2. 使用 number_input 選擇 "索引值" (0 ~ 11)
-    # label 設為 "grade_input_label" 以便 CSS 定位
     grade_idx = st.number_input(
-        "grade_input_label", 
+        "學期成績",                  # 使用原生標題，確保對齊
         min_value=0, 
         max_value=max_grade_index, 
-        value=max_grade_index, # 預設選最下面的 (A+)
-        step=1,
-        label_visibility="collapsed" # 隱藏原本的標題
+        value=max_grade_index,      # 預設選 A+ (最大值)
+        step=1
     )
     
-    # 3. 根據索引值抓出對應的文字 (例如 "A+")
-    selected_grade_text = grade_options[grade_idx]
+    # 取得目前的成績文字 (例如 "A+")
+    selected_grade_text = grade_options_reversed[grade_idx]
     
-    # 4. 用 HTML 覆蓋層把文字 "貼" 在輸入框上面
-    st.markdown(f'<div class="grade-display-overlay">{selected_grade_text}</div>', unsafe_allow_html=True)
+    # --- CSS 魔術區 ---
+    # 這裡做了三件事：
+    # 1. 隱藏原本的數字 (color: transparent)
+    # 2. 定義一個 CSS 變數 --current-grade 存現在的成績
+    # 3. 用 ::after 偽元素把成績文字「貼」在輸入框原本顯示數字的地方
+    
+    st.markdown(f"""
+    <style>
+    /* 1. 隱藏原本的 0, 1, 2... 數字 */
+    input[aria-label="學期成績"] {{
+        color: transparent !important;
+        caret-color: transparent; /* 隱藏游標 */
+    }}
+
+    /* 2. 透過 :has() 選取器找到輸入框的父容器，並植入文字 */
+    div[data-testid="stNumberInput"]:has(input[aria-label="學期成績"]) div[data-baseweb="input"]::after {{
+        content: "{selected_grade_text}";  /* 🔥 這裡直接帶入 Python 變數 */
+        
+        position: absolute;
+        left: 0;           /* 靠左對齊 */
+        padding-left: 10px;/* 模擬原本數字的內縮距離 */
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        
+        color: white;      /* 文字顏色 */
+        font-family: "Source Sans Pro", sans-serif; /* 確保字體一致 */
+        pointer-events: none; /* 讓點擊穿透，確保按鈕功能正常 */
+    }}
+    
+    /* 修正表格置中 */
+    div[data-testid="column"] {{ text-align: center; }}
+    
+    /* 調整表格內的按鈕 */
+    div.stButton > button {{ width: 100%; }}
+    </style>
+    """, unsafe_allow_html=True)
 
     # ------------------------------------
     
@@ -123,15 +110,12 @@ with col2:
     st.markdown("<h1 style='text-align: center;'>🎓 大學 GPA 計算機</h1>", unsafe_allow_html=True)
     
     if len(st.session_state.courses) > 0:
-        # 原始數據
         df = pd.DataFrame(st.session_state.courses)
         
-        # --- 計算 GPA ---
         total_credits = df["學分"].sum()
         total_points = df["學分 × GP"].sum()
         gpa = total_points / total_credits if total_credits > 0 else 0.0
         
-        # --- 顯示 GPA ---
         st.markdown(f"""
         <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; margin-bottom:20px; text-align: center;">
             <h2 style="margin:0; color:#555;">學期平均 GPA</h2>
@@ -142,7 +126,6 @@ with col2:
         
         st.subheader("📋 科目清單")
 
-        # --- 表格標題列 ---
         cols_ratio = [3, 1, 1, 1, 1, 1.5]
         h1, h2, h3, h4, h5, h6 = st.columns(cols_ratio, vertical_alignment="bottom", gap="small")
         
@@ -158,7 +141,6 @@ with col2:
         
         st.markdown("<hr style='margin: 0 0 10px 0; border-top: 2px solid #ccc;'>", unsafe_allow_html=True)
 
-        # --- 顯示每一行資料 ---
         for i, course in enumerate(st.session_state.courses):
             c1, c2, c3, c4, c5, c6 = st.columns(cols_ratio, vertical_alignment="center", gap="small")
             
